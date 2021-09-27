@@ -3,14 +3,22 @@ import pandas as pd
 
 class Desaggregation:
     "contains methods for desaggregation data processing"
-    def __init__(self, criteria, demand, names):
-        self.criteria = criteria
-        self.demand = demand
-        self.criteria_pct = criteria.pct_change().dropna()
-        self.demand_pct = demand.pct_change().dropna()
-        self.time_horizon = len(demand.index) - 1
+    def __init__(self, criteria, demand, split=-1):
+        if split == -1:
+            self.criteria = criteria
+            self.demand = demand
+        else:
+            self.criteria = criteria.loc[:split]
+            self.demand = demand.loc[:split]
+            self.criteria_test = criteria.loc[split:]
+            self.demand_test = demand.loc[split:]
+            self.split = split
+
+        self.criteria_pct = self.criteria.pct_change().dropna()
+        self.demand_pct = self.demand.pct_change().dropna()
+        
+        self.time_horizon = len(self.demand.index) - 1
         self.num_cri = len(criteria.columns)
-        self.names = names
         self._params = {}
 
     def __getitem__(self, index):
@@ -33,10 +41,9 @@ class Desaggregation:
             self.cri_lvls.T[idx] = np.flip(self.cri_lvls.T[idx])
 
     def set_levels(self, criteria_ranges, demand_ranges):
-        self.cri_lvls = self._set_lvls(np.array(criteria_ranges).T, self.alpha_i )
-        self.dem_lvls = self._set_lvls(np.array(demand_ranges), self.alpha )
-        if self.cost_criteria:
-            self._set_cost_criteria(self.cost_criteria)
+        self.cri_lvls = self._set_lvls(np.array(criteria_ranges), self.alpha_i )
+        self.dem_lvls = self._set_lvls(np.array(demand_ranges), self.alpha)
+        self._set_cost_criteria(self.cost_criteria)
 
     def interpolate(self, v_k, V, v_kx1):
         if V <= v_k:
@@ -51,7 +58,7 @@ class Desaggregation:
         __coeffs = {}
         for j in range( self.time_horizon ):
             for k in range( self.alpha_i - 1 ):
-                for i in range(self.num_cri ):
+                for i in range(self.num_cri):
                     xi_k = self.cri_lvls[k, i]
                     xi_kx1 = self.cri_lvls[k + 1, i]
                     Xij = criteria[j, i]
